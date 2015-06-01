@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+  .title {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    font-family:arial; 
+    font-size:20pt; 
+    margin-left:10%; 
+    margin-right:10%;     
+  }
+
+  .info {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    font-family:arial; 
+    font-size:12pt; 
+    margin-left:10%; 
+    margin-right:10%;  
+    padding-top:10px;
+  }  
+  </style>
+  <title>Particle Box</title>
+  <script type="text/javascript" src="fiziks.js"></script>
+  <script type="text/javascript">
+    function render(primList) {
+      var canvas = document.getElementById("democanvas");
+      var context = canvas.getContext("2d");
+      context.fillStyle = "#FFFFFF";
+      context.fillRect(0,0,canvas.width,canvas.height);
+      primList.forEach(function(p) {
+        p.render(context, app.getDebug());
+      });      
+    }
+
+    var app = (function() {
+      var box = null;
+      var radius = 20;
+      var rotate = false;
+      var debug = false;
+      return {
+        resetBox: function() {
+          fiziks.clear();
+          box = new ColContainer(new Vec3D(), 350);
+          fiziks.add(box);
+          this.updateRadius();
+        },
+        getBox: function() { return box; },
+        getRadius: function() { return radius; },
+        getRotate: function() { return rotate; },
+        setRotate: function(enable) { rotate = enable; },
+        getDebug: function() { return debug; },
+        setDebug: function(enable) { debug = enable; },
+        updateRadius: function() { 
+          radius = parseInt(document.getElementById("radius").value); 
+        }
+      }
+    })();
+
+    function insideBox(box, x, y) {
+      var pos = new Vec3D(x,y);
+      var inside = true;
+      box.lines.forEach(function(l) {
+        var d = l.plane.distToPos(pos);
+        if(d < 0) {
+          inside = false;
+        }
+      });
+      return inside;
+    }
+
+    function rotateBox(box, angleRad, dt) {
+      box.lines.forEach(function(l) {
+        var angleRadDT = angleRad*dt;
+        var np0x = l.pos0.x*Math.cos(angleRadDT) - l.pos0.y*Math.sin(angleRadDT);
+        var np0y = l.pos0.x*Math.sin(angleRadDT) + l.pos0.y*Math.cos(angleRadDT);
+        var np1x = l.pos1.x*Math.cos(angleRadDT) - l.pos1.y*Math.sin(angleRadDT);
+        var np1y = l.pos1.x*Math.sin(angleRadDT) + l.pos1.y*Math.cos(angleRadDT);
+        l.pos0.x = np0x; l.pos0.y = np0y;
+        l.pos1.x = np1x; l.pos1.y = np1y;
+        l.updatePlane();
+      });
+    }    
+
+    function updateRadius() {
+      app.updateRadius();
+    }
+
+    function toggleReset() {
+      app.resetBox();
+    }
+
+    function toggleRotate() {
+      var rot = app.getRotate();
+      app.setRotate(!rot);
+    }
+
+    function toggleDebug() {
+      var dbg = app.getDebug();
+      app.setDebug(!dbg);
+    }
+
+    window.onload = function() {
+      if(!fiziks.init("democanvas")) {
+        return;
+      }
+
+      app.resetBox();
+      setInterval(function() {
+        fiziks.update(30);
+        render(fiziks.getCanvasPrims());
+        app.getRotate() && rotateBox(app.getBox(), 0.001, 30);
+      }, 30);
+
+      var cvs = document.getElementById("democanvas");
+      cvs.onclick = function(e) {
+        // Add a sphere to the world.
+        var rect = cvs.getBoundingClientRect();
+        var p = fiziks.mapCanvasToFiz((e.clientX - rect.left), (e.clientY - rect.top));
+
+        // Only place a sphere inside the box.
+        if(insideBox(app.getBox(), p.x, p.y)) {
+          var gravity = new Vec3D(0,-1000);
+          var r = app.getRadius();
+          var m = r == 30 ? 1 : 0.6;
+          fiziks.add(new ColSphere(new Vec3D(p.x, p.y),r,m)).force = gravity;
+        }
+      }
+    }
+  </script>
+</head>
+<body>
+  <div style="width:500px; text-align:center">
+    <div class="title">Click inside box to add particle!</div>
+    <div class="info">
+      Set the size of the paricle
+      <select id="radius" onchange="updateRadius()">
+        <option>10</option>
+        <option>20</option>
+        <option>30</option>
+        <option>40</option>
+        <option>60</option>
+        <option>80</option>
+      </select>
+    </div>
+    <div class="info">
+      <input type="button" value="Reset" onclick="toggleReset()"></input>
+      <input type="button" value="Toggle Rotate" onclick="toggleRotate()"></input>
+      <input type="button" value="Debug" onclick="toggleDebug()"></input>
+    </div>
+    <canvas id="democanvas" width=500 height=500></canvas>
+  </div>
+</body>
+</html>
